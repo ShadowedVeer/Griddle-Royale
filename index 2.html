@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Griddle Royale — Shift Sim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --steel-950:#12151A;
+  --steel-900:#191D24;
+  --steel-800:#212730;
+  --steel-700:#2C333E;
+  --steel-600:#3B4451;
+  --steel-400:#697687;
+  --paper:#F3EDDD;
+  --paper-ink:#2A2620;
+  --amber:#FFB627;
+  --sear:#E8532E;
+  --mint:#35D6A4;
+  --grease:#0B0D11;
+
+  --f-sign:"Bungee", "Barlow Condensed", sans-serif;
+  --f-board:"Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body:"Barlow", system-ui, sans-serif;
+  --f-tick:"Courier Prime", ui-monospace, monospace;
+
+  --r:10px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:var(--f-body);
+  color:#E7EBF1;
+  background:
+    radial-gradient(1200px 500px at 50% -10%, rgba(255,182,39,.14), transparent 60%),
+    var(--steel-950);
+  -webkit-tap-highlight-color:transparent;
+  overflow:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2.5px solid var(--amber); outline-offset:2px; border-radius:4px}
+
+/* ---------- shell ---------- */
+.app{
+  height:100dvh;
+  display:grid;
+  grid-template-columns:clamp(230px,20vw,280px) minmax(0,1fr) clamp(250px,22vw,310px);
+  grid-template-rows:auto minmax(0,1fr);
+  grid-template-areas:"head head head" "rail line pass";
+  gap:10px;
+  padding:10px;
+  padding-bottom:max(10px, env(safe-area-inset-bottom));
+}
+
+/* ---------- header ---------- */
+.head{
+  grid-area:head;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:linear-gradient(180deg,var(--steel-800),var(--steel-900));
+  border:1px solid var(--steel-700);
+  border-top:2px solid var(--steel-600);
+  border-radius:var(--r);
+  padding:8px 12px;
+}
+.logo{
+  font-family:var(--f-sign);
+  font-size:clamp(14px,2.2vw,19px);
+  letter-spacing:.5px;
+  color:var(--amber);
+  text-shadow:0 0 22px rgba(255,182,39,.45);
+  white-space:nowrap;
+}
+.logo span{color:var(--sear)}
+.gauges{display:flex; gap:8px; margin-left:auto; flex-wrap:wrap}
+.gauge{
+  background:var(--grease);
+  border:1px solid var(--steel-700);
+  border-radius:6px;
+  padding:3px 10px 4px;
+  min-width:74px;
+  text-align:center;
+}
+.gauge b{
+  display:block;
+  font-family:var(--f-tick); font-weight:700;
+  font-size:clamp(14px,2vw,18px); line-height:1.1;
+  color:var(--amber);
+  font-variant-numeric:tabular-nums;
+}
+.gauge i{
+  display:block; font-style:normal;
+  font-family:var(--f-board); font-weight:600;
+  font-size:9.5px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--steel-400);
+}
+.gauge.cash b{color:var(--mint)}
+.gauge.clock.low b{color:var(--sear)}
+.iconbtn{
+  width:34px; height:34px; border-radius:6px;
+  border:1px solid var(--steel-700); background:var(--steel-800);
+  display:grid; place-items:center; font-size:15px;
+}
+.iconbtn:hover{border-color:var(--steel-600)}
+
+/* ---------- panels ---------- */
+.panel{
+  background:linear-gradient(180deg,var(--steel-800),var(--steel-900));
+  border:1px solid var(--steel-700);
+  border-radius:var(--r);
+  min-height:0;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.panel-hd{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px;
+  border-bottom:1px solid var(--steel-700);
+  background:var(--steel-800);
+  font-family:var(--f-board); font-weight:700;
+  font-size:12px; letter-spacing:.19em; text-transform:uppercase;
+  color:var(--steel-400);
+  flex:none;
+}
+.panel-hd .dot{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 8px var(--mint)}
+
+/* ---------- ticket rail ---------- */
+.rail{grid-area:rail}
+.rail-body{overflow:auto; padding:12px; display:flex; flex-direction:column; gap:16px}
+.rail-empty{
+  margin:auto; text-align:center; color:var(--steel-400);
+  font-family:var(--f-board); font-size:14px; letter-spacing:.1em; text-transform:uppercase;
+}
+
+.ticket{
+  position:relative;
+  background:var(--paper);
+  color:var(--paper-ink);
+  font-family:var(--f-tick);
+  font-size:12.5px; line-height:1.5;
+  padding:11px 12px 18px 16px;
+  border:none;
+  text-align:left;
+  width:100%;
+  box-shadow:0 8px 18px rgba(0,0,0,.45);
+  animation:print .42s cubic-bezier(.2,.9,.3,1) both;
+  -webkit-mask:
+    conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 0 100%/13px 7px repeat-x,
+    linear-gradient(#000,#000) 0 0/100% calc(100% - 7px) no-repeat;
+  mask:
+    conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) 0 100%/13px 7px repeat-x,
+    linear-gradient(#000,#000) 0 0/100% calc(100% - 7px) no-repeat;
+}
+@keyframes print{from{transform:translateY(-18px);opacity:0}to{transform:none;opacity:1}}
+.ticket.sel{box-shadow:0 0 0 3px var(--amber), 0 8px 18px rgba(0,0,0,.5)}
+.ticket .patience{
+  position:absolute; left:0; top:0; bottom:7px; width:5px;
+  background:var(--mint);
+}
+.t-top{
+  display:flex; justify-content:space-between; align-items:baseline;
+  font-weight:700; letter-spacing:.04em;
+}
+.t-cust{display:flex;align-items:center;gap:6px;margin:2px 0 6px;font-size:12px}
+.t-cust .face{font-family:var(--f-body);font-size:15px}
+.t-rule{border-top:1px dashed rgba(42,38,32,.45); margin:5px 0}
+.t-line{display:flex; gap:4px; white-space:nowrap}
+.t-line .nm{overflow:hidden; text-overflow:ellipsis; min-width:0}
+.t-line .dots{flex:1; min-width:0; overflow:hidden; color:rgba(42,38,32,.4); letter-spacing:1px}
+.t-line.done{opacity:.42; text-decoration:line-through}
+.t-tot{display:flex;justify-content:space-between;font-weight:700;margin-top:4px}
+
+/* ---------- line (stations) ---------- */
+.line{grid-area:line}
+.tabs{display:flex; gap:6px; padding:8px; border-bottom:1px solid var(--steel-700); flex:none}
+.tab{
+  flex:1;
+  padding:9px 6px 8px;
+  border-radius:7px;
+  border:1px solid var(--steel-700);
+  background:var(--steel-800);
+  font-family:var(--f-board); font-weight:700;
+  font-size:13px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--steel-400);
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.tab[aria-selected="true"]{
+  background:linear-gradient(180deg,#39424f,var(--steel-700));
+  color:#fff; border-color:var(--steel-600);
+  box-shadow:inset 0 -2px 0 var(--amber);
+}
+.station{flex:1; min-height:0; overflow:auto; padding:14px; display:none}
+.station.on{display:block}
+
+/* build */
+.build-wrap{display:grid; grid-template-columns:minmax(150px,190px) 1fr; gap:14px; height:100%}
+.plate{
+  background:
+    repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 2px,transparent 2px 9px),
+    linear-gradient(180deg,var(--steel-700),var(--steel-800));
+  border:1px solid var(--steel-600);
+  border-radius:8px;
+  padding:12px 10px 10px;
+  display:flex; flex-direction:column;
+}
+.stack{
+  flex:1; min-height:110px;
+  display:flex; flex-direction:column-reverse; align-items:center; justify-content:flex-start;
+  gap:1px; padding-bottom:6px;
+}
+.stack-hint{
+  margin:auto; color:var(--steel-400); text-align:center;
+  font-family:var(--f-board); font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+}
+.plate-acts{display:flex; gap:6px; margin-top:8px}
+.mini{
+  flex:1; padding:8px 4px; border-radius:6px; border:1px solid var(--steel-600);
+  background:var(--steel-800);
+  font-family:var(--f-board); font-weight:700; font-size:11.5px;
+  letter-spacing:.12em; text-transform:uppercase; color:#cfd6e0;
+}
+.mini:hover{background:var(--steel-700)}
+.mini.go{background:var(--sear); border-color:#ff7a55; color:#fff}
+.mini.go:hover{filter:brightness(1.12)}
+.mini:disabled{opacity:.35; cursor:not-allowed}
+
+.ing-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:8px; align-content:start}
+.ing{
+  border:1px solid var(--steel-700); border-radius:8px;
+  background:var(--steel-800);
+  padding:8px 6px 7px;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  font-family:var(--f-board); font-weight:600; font-size:11px;
+  letter-spacing:.1em; text-transform:uppercase; color:#c3cbd6;
+  transition:transform .09s ease, background .12s;
+}
+.ing:hover{background:var(--steel-700)}
+.ing:active{transform:scale(.94)}
+.ing .swatch{width:52px; height:20px; display:grid; place-items:center}
+
+/* food shapes */
+.f{width:74px; flex:none; position:relative}
+.f.sm{width:52px}
+.f-bunTop{height:26px;border-radius:34px 34px 7px 7px;background:linear-gradient(180deg,#E2A75A,#C4823C);box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
+.f-bunTop::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:radial-gradient(2px 1.4px at 22% 42%,#FBE9C4 99%,transparent),radial-gradient(2px 1.4px at 48% 30%,#FBE9C4 99%,transparent),radial-gradient(2px 1.4px at 70% 45%,#FBE9C4 99%,transparent),radial-gradient(2px 1.4px at 36% 60%,#FBE9C4 99%,transparent),radial-gradient(2px 1.4px at 61% 62%,#FBE9C4 99%,transparent)}
+.f-bunBottom{height:17px;border-radius:7px 7px 16px 16px;background:linear-gradient(180deg,#CF9350,#A96C31)}
+.f-patty{height:15px;border-radius:8px;background:linear-gradient(180deg,#66401F,#3E2412);box-shadow:inset 0 2px 0 rgba(255,255,255,.07)}
+.f-chicken{height:15px;border-radius:6px;background:linear-gradient(180deg,#E0A238,#B4761E)}
+.f-cheese{height:9px;border-radius:3px;background:linear-gradient(180deg,#FFC93C,#F09E17);width:82%;margin:0 auto;clip-path:polygon(0 0,100% 0,100% 62%,88% 100%,74% 62%,58% 100%,44% 62%,28% 100%,14% 62%,0 78%)}
+.f-lettuce{height:11px;border-radius:9px;background:linear-gradient(180deg,#7CD44E,#4B9E2A);width:96%;margin:0 auto;
+  -webkit-mask:radial-gradient(circle 6px at 6px 0,#0000 98%,#000) 0 0/12px 100%;
+  mask:radial-gradient(circle 6px at 6px 0,#0000 98%,#000) 0 0/12px 100%}
+.f-tomato{height:9px;border-radius:5px;background:linear-gradient(180deg,#F2543F,#C42B22);width:88%;margin:0 auto}
+.f-pickle{height:7px;border-radius:4px;background:repeating-linear-gradient(90deg,#5E9B33 0 9px,#87BE4F 9px 18px);width:72%;margin:0 auto}
+.f-ketchup{height:6px;border-radius:4px;background:#C81E1E;width:78%;margin:0 auto}
+.f-mayo{height:6px;border-radius:4px;background:#F4EEDC;width:78%;margin:0 auto}
+.stk{animation:drop .2s cubic-bezier(.3,1.4,.5,1) both}
+@keyframes drop{from{transform:translateY(-16px) scaleX(.85);opacity:0}}
+
+/* fryer */
+.rig{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.vat{
+  height:118px; border-radius:10px 10px 6px 6px;
+  border:1px solid var(--steel-600);
+  background:
+    radial-gradient(120px 40px at 50% 12%,rgba(255,182,39,.25),transparent 70%),
+    linear-gradient(180deg,#3a2f14,#20180a);
+  position:relative; overflow:hidden;
+  display:grid; place-items:center;
+}
+.vat::after{
+  content:""; position:absolute; inset:auto 0 0 0; height:60%;
+  background:repeating-radial-gradient(circle at 20% 90%,rgba(255,200,90,.16) 0 3px,transparent 3px 12px),
+             repeating-radial-gradient(circle at 68% 96%,rgba(255,200,90,.12) 0 2px,transparent 2px 10px);
+  opacity:.7;
+}
+.vat.hot::after{animation:bubble 1.1s linear infinite}
+@keyframes bubble{to{transform:translateY(-26px);opacity:.15}}
+.basket{
+  width:150px;height:66px;border-radius:4px 4px 8px 8px;
+  border:2px solid #8b93a0;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.10) 0 2px,transparent 2px 7px);
+  position:relative; z-index:1;
+  transition:transform .35s cubic-bezier(.3,1.2,.4,1);
+  transform:translateY(-46px);
+  display:grid;place-items:center;
+}
+.basket.in{transform:translateY(16px)}
+.fries-vis{display:flex;gap:2px;align-items:flex-end;height:26px}
+.fries-vis i{display:block;width:4px;border-radius:1px;background:#F0D48A}
+.track{
+  height:34px;border-radius:6px;border:1px solid var(--steel-600);
+  background:var(--grease); position:relative; overflow:hidden;
+}
+.zone{position:absolute;top:0;bottom:0;background:rgba(53,214,164,.22);border-left:1px solid var(--mint);border-right:1px solid var(--mint)}
+.zone.burn{background:rgba(232,83,46,.18);border-color:var(--sear)}
+.needle{position:absolute;top:0;bottom:0;width:3px;background:var(--amber);box-shadow:0 0 12px var(--amber);left:0}
+.sizes{display:flex;gap:8px}
+.size{
+  flex:1;padding:11px 4px;border-radius:8px;border:1px solid var(--steel-700);background:var(--steel-800);
+  font-family:var(--f-board);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:#c3cbd6
+}
+.size[aria-pressed="true"]{background:var(--amber);color:#1b1508;border-color:#ffd06a}
+.bigbtn{
+  padding:15px;border-radius:9px;border:1px solid #ff7a55;background:var(--sear);color:#fff;
+  font-family:var(--f-board);font-weight:700;font-size:17px;letter-spacing:.2em;text-transform:uppercase;
+}
+.bigbtn:hover{filter:brightness(1.1)}
+.bigbtn.calm{background:var(--steel-700);border-color:var(--steel-600)}
+.readout{
+  text-align:center;font-family:var(--f-tick);font-size:13px;color:var(--steel-400);min-height:20px
+}
+.readout.good{color:var(--mint)}
+.readout.bad{color:var(--sear)}
+
+/* drinks */
+.cupwrap{display:grid;place-items:center;height:150px}
+.cup{
+  width:86px;height:118px;position:relative;
+  border:2px solid #aab3c0;border-top:none;
+  border-radius:5px 5px 26px 26px;
+  clip-path:polygon(0 0,100% 0,86% 100%,14% 100%);
+  background:rgba(255,255,255,.05);
+  overflow:hidden;
+}
+.cup.s{height:84px;width:70px}
+.cup.l{height:142px;width:96px}
+.soda{position:absolute;left:0;right:0;bottom:0;height:0%;transition:height .05s linear;background:#5A3418}
+.fillline{position:absolute;left:0;right:0;bottom:92%;height:2px;background:repeating-linear-gradient(90deg,var(--mint) 0 5px,transparent 5px 10px)}
+.flavors{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.flav{
+  padding:11px 8px;border-radius:8px;border:1px solid var(--steel-700);background:var(--steel-800);
+  font-family:var(--f-board);font-weight:700;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:#c3cbd6;
+  display:flex;align-items:center;gap:8px;justify-content:center;
+}
+.flav .chip{width:13px;height:13px;border-radius:50%}
+.flav[aria-pressed="true"]{border-color:var(--amber);background:var(--steel-700);color:#fff}
+
+/* ---------- pass ---------- */
+.pass{grid-area:pass}
+.lamp{
+  height:8px;flex:none;
+  background:linear-gradient(90deg,transparent,rgba(255,182,39,.85),transparent);
+  filter:blur(1px);
+  animation:hum 3.6s ease-in-out infinite;
+}
+@keyframes hum{50%{opacity:.55}}
+.tray{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:7px}
+.tray-empty{margin:auto;text-align:center;color:var(--steel-400);font-family:var(--f-board);font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:0 14px;line-height:1.7}
+.slot{
+  display:flex;align-items:center;gap:9px;
+  background:var(--steel-800);border:1px solid var(--steel-700);border-radius:8px;padding:8px 9px;
+  animation:pop .22s cubic-bezier(.3,1.4,.5,1) both;
+}
+@keyframes pop{from{transform:scale(.9);opacity:0}}
+.slot .ico{font-size:19px;width:24px;text-align:center}
+.slot .txt{flex:1;min-width:0}
+.slot .nm{font-family:var(--f-board);font-weight:700;font-size:13.5px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .qa{font-family:var(--f-tick);font-size:10.5px;color:var(--steel-400)}
+.slot .qa.good{color:var(--mint)}
+.slot .qa.bad{color:var(--sear)}
+.slot .bin{width:26px;height:26px;border-radius:5px;border:1px solid var(--steel-700);font-size:12px;flex:none}
+.slot .bin:hover{border-color:var(--sear);color:var(--sear)}
+.pass-foot{flex:none;padding:10px;border-top:1px solid var(--steel-700);display:flex;flex-direction:column;gap:7px}
+.serve{
+  padding:16px;border-radius:9px;border:1px solid var(--mint);
+  background:linear-gradient(180deg,#3ae7b1,#22b184);color:#06251b;
+  font-family:var(--f-board);font-weight:700;font-size:18px;letter-spacing:.2em;text-transform:uppercase;
+}
+.serve:hover{filter:brightness(1.08)}
+.serve:disabled{background:var(--steel-800);border-color:var(--steel-700);color:var(--steel-400);cursor:not-allowed}
+
+/* ---------- toasts ---------- */
+.toasts{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none;width:min(92vw,420px)}
+.toast{
+  background:var(--steel-800);border:1px solid var(--steel-600);border-left:4px solid var(--amber);
+  border-radius:7px;padding:9px 14px;font-family:var(--f-board);font-weight:600;font-size:14.5px;letter-spacing:.05em;
+  box-shadow:0 10px 26px rgba(0,0,0,.5);animation:tin .28s ease both;
+}
+.toast.good{border-left-color:var(--mint)}
+.toast.bad{border-left-color:var(--sear)}
+@keyframes tin{from{transform:translateY(-12px);opacity:0}}
+
+/* ---------- overlays ---------- */
+.veil{
+  position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:18px;
+  background:rgba(9,11,15,.86); backdrop-filter:blur(6px);
+  overflow:auto;
+}
+.veil[hidden]{display:none}
+.card{
+  width:min(560px,100%);
+  background:linear-gradient(180deg,var(--steel-800),var(--steel-900));
+  border:1px solid var(--steel-600);border-radius:14px;padding:24px;
+  box-shadow:0 28px 70px rgba(0,0,0,.6);
+}
+.card h1{font-family:var(--f-sign);font-size:clamp(24px,6vw,38px);margin:0 0 4px;color:var(--amber);text-shadow:0 0 30px rgba(255,182,39,.4);line-height:1.15}
+.card h1 span{color:var(--sear)}
+.card h2{font-family:var(--f-board);font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:var(--steel-400);margin:0 0 16px;font-weight:600}
+.card p{font-size:14.5px;line-height:1.6;color:#c6cedb;margin:0 0 12px}
+.steps{list-style:none;padding:0;margin:0 0 18px;display:flex;flex-direction:column;gap:9px}
+.steps li{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;color:#ccd4e0}
+.steps b{font-family:var(--f-board);letter-spacing:.12em;text-transform:uppercase;color:var(--amber);font-size:12.5px;flex:none;width:66px;padding-top:2px}
+.tally{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 18px}
+.tally div{background:var(--grease);border:1px solid var(--steel-700);border-radius:8px;padding:9px 12px}
+.tally i{display:block;font-style:normal;font-family:var(--f-board);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--steel-400)}
+.tally b{display:block;font-family:var(--f-tick);font-weight:700;font-size:21px;color:#fff}
+.tally .hi b{color:var(--mint)}
+
+.recipes{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.rcp{background:var(--grease);border:1px solid var(--steel-700);border-radius:8px;padding:10px 12px}
+.rcp h3{margin:0 0 3px;font-family:var(--f-board);font-size:14.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber)}
+.rcp p{margin:0;font-family:var(--f-tick);font-size:11.5px;color:#a9b3c1;line-height:1.5}
+.rcp em{color:var(--steel-400);font-style:normal}
+
+/* ---------- mobile ---------- */
+@media (max-width:900px){
+  .app{
+    grid-template-columns:1fr;
+    grid-template-rows:auto auto minmax(0,1fr) auto;
+    grid-template-areas:"head" "rail" "line" "pass";
+    gap:8px; padding:8px;
+  }
+  .rail{max-height:196px}
+  .rail-body{flex-direction:row; overflow-x:auto; padding:10px; gap:12px}
+  .ticket{min-width:206px; width:206px; flex:none; font-size:12px; padding-bottom:16px}
+  .pass{max-height:44dvh}
+  .tray{flex-direction:row; overflow-x:auto; overflow-y:hidden}
+  .slot{flex:none; width:172px}
+  .tray-empty{width:100%}
+  .build-wrap{grid-template-columns:1fr; gap:10px}
+  .plate{order:2}
+  .stack{min-height:88px}
+  .gauge{min-width:60px;padding:2px 8px 3px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::after,*::before{animation-duration:.001s !important;animation-iteration-count:1 !important;transition-duration:.05s !important}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="head">
+    <div class="logo">GRIDDLE <span>ROYALE</span></div>
+    <div class="gauges">
+      <div class="gauge"><b id="gDay">1</b><i>Day</i></div>
+      <div class="gauge clock" id="gClockBox"><b id="gClock">3:00</b><i>Shift</i></div>
+      <div class="gauge cash"><b id="gCash">$0</b><i>Till</i></div>
+      <div class="gauge"><b id="gStreak">0</b><i>Streak</i></div>
+    </div>
+    <button class="iconbtn" id="btnBook" title="Recipe book" aria-label="Recipe book">📖</button>
+    <button class="iconbtn" id="btnMute" title="Sound" aria-label="Toggle sound">🔊</button>
+  </header>
+
+  <!-- TICKET RAIL -->
+  <section class="panel rail" aria-label="Order tickets">
+    <div class="panel-hd"><span class="dot"></span> Order rail</div>
+    <div class="rail-body" id="rail">
+      <div class="rail-empty">No tickets yet</div>
+    </div>
+  </section>
+
+  <!-- STATIONS -->
+  <section class="panel line" aria-label="Kitchen stations">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-st="build">🍔 Build</button>
+      <button class="tab" role="tab" aria-selected="false" data-st="fry">🍟 Fryer</button>
+      <button class="tab" role="tab" aria-selected="false" data-st="drink">🥤 Pour</button>
+    </div>
+
+    <div class="station on" id="st-build">
+      <div class="build-wrap">
+        <div class="plate">
+          <div class="stack" id="stack"><div class="stack-hint">Start with<br>a bottom bun</div></div>
+          <div class="plate-acts">
+            <button class="mini" id="undo">Scrape</button>
+            <button class="mini go" id="wrap">Wrap</button>
+          </div>
+        </div>
+        <div class="ing-grid" id="ings"></div>
+      </div>
+    </div>
+
+    <div class="station" id="st-fry">
+      <div class="rig">
+        <div class="sizes" id="frySizes" role="group" aria-label="Fry size">
+          <button class="size" data-sz="S" aria-pressed="false">Small</button>
+          <button class="size" data-sz="M" aria-pressed="true">Medium</button>
+          <button class="size" data-sz="L" aria-pressed="false">Large</button>
+        </div>
+        <div class="vat" id="vat"><div class="basket" id="basket"><div class="fries-vis" id="friesVis"></div></div></div>
+        <div class="track"><div class="zone" id="zGood"></div><div class="zone burn" id="zBurn"></div><div class="needle" id="needle"></div></div>
+        <button class="bigbtn" id="fryBtn">Drop basket</button>
+        <div class="readout" id="fryOut">Lift inside the green band for a perfect golden batch.</div>
+      </div>
+    </div>
+
+    <div class="station" id="st-drink">
+      <div class="rig">
+        <div class="sizes" id="cupSizes" role="group" aria-label="Cup size">
+          <button class="size" data-sz="S" aria-pressed="false">Small</button>
+          <button class="size" data-sz="M" aria-pressed="true">Medium</button>
+          <button class="size" data-sz="L" aria-pressed="false">Large</button>
+        </div>
+        <div class="flavors" id="flavors" role="group" aria-label="Flavor"></div>
+        <div class="cupwrap"><div class="cup m" id="cup"><div class="fillline"></div><div class="soda" id="soda"></div></div></div>
+        <button class="bigbtn" id="pourBtn">Hold to pour</button>
+        <div class="readout" id="pourOut">Fill to the dashed line, then let go.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PASS -->
+  <section class="panel pass" aria-label="Warming pass">
+    <div class="panel-hd">Heat lamp pass</div>
+    <div class="lamp"></div>
+    <div class="tray" id="tray"><div class="tray-empty">Finished items land here</div></div>
+    <div class="pass-foot">
+      <button class="serve" id="serveBtn" disabled>Serve order</button>
+    </div>
+  </section>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<!-- START -->
+<div class="veil" id="vStart">
+  <div class="card">
+    <h1>GRIDDLE <span>ROYALE</span></h1>
+    <h2>Shift Simulator</h2>
+    <p>You're on register <em>and</em> the line tonight. Tickets print, people wait, the fryer doesn't care about your feelings.</p>
+    <ul class="steps">
+      <li><b>Read</b> A ticket prints for each customer. Tap one to make it the order you're working.</li>
+      <li><b>Build</b> Stack burgers bottom-up in the exact recipe order, then hit Wrap.</li>
+      <li><b>Fry</b> Pick a size, drop the basket, lift while the needle is in the green.</li>
+      <li><b>Pour</b> Pick size and flavor, hold the button, release at the dashed line.</li>
+      <li><b>Serve</b> When the pass matches the ticket, send it out. Fast and correct pays tips.</li>
+    </ul>
+    <button class="bigbtn" id="btnStart" style="width:100%">Clock in</button>
+  </div>
+</div>
+
+<!-- END OF DAY -->
+<div class="veil" id="vEnd" hidden>
+  <div class="card">
+    <h1 id="endTitle">Shift over</h1>
+    <h2 id="endSub">Day 1 receipts</h2>
+    <div class="tally">
+      <div class="hi"><i>Total taken</i><b id="eTotal">$0</b></div>
+      <div><i>Tips</i><b id="eTips">$0</b></div>
+      <div><i>Orders served</i><b id="eServed">0</b></div>
+      <div><i>Perfect orders</i><b id="ePerfect">0</b></div>
+      <div><i>Walkouts</i><b id="eWalk">0</b></div>
+      <div><i>Best streak</i><b id="eStreak">0</b></div>
+    </div>
+    <p id="endNote"></p>
+    <button class="bigbtn" id="btnNext" style="width:100%">Clock in for Day 2</button>
+  </div>
+</div>
+
+<!-- RECIPE BOOK -->
+<div class="veil" id="vBook" hidden>
+  <div class="card">
+    <h1 style="font-size:26px">Recipe book</h1>
+    <h2>Built bottom to top</h2>
+    <div class="recipes" id="bookList"></div>
+    <button class="bigbtn calm" id="btnCloseBook" style="width:100%">Back to the line</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ data ============ */
+const ING = {
+  bunBottom:{n:"Bottom bun", cls:"f-bunBottom"},
+  patty:    {n:"Beef patty", cls:"f-patty"},
+  chicken:  {n:"Chicken",    cls:"f-chicken"},
+  cheese:   {n:"Cheese",     cls:"f-cheese"},
+  lettuce:  {n:"Lettuce",    cls:"f-lettuce"},
+  tomato:   {n:"Tomato",     cls:"f-tomato"},
+  pickle:   {n:"Pickles",    cls:"f-pickle"},
+  ketchup:  {n:"Ketchup",    cls:"f-ketchup"},
+  mayo:     {n:"Mayo",       cls:"f-mayo"},
+  bunTop:   {n:"Top bun",    cls:"f-bunTop"}
+};
+const ING_ORDER = ["bunBottom","patty","chicken","cheese","lettuce","tomato","pickle","ketchup","mayo","bunTop"];
+
+const BURGERS = [
+  {id:"royale", n:"Royale Burger", price:5.49, r:["bunBottom","patty","cheese","pickle","ketchup","bunTop"]},
+  {id:"double", n:"Double Stack",  price:7.29, r:["bunBottom","patty","cheese","patty","cheese","bunTop"]},
+  {id:"garden", n:"Garden Crunch", price:6.19, r:["bunBottom","patty","lettuce","tomato","mayo","bunTop"]},
+  {id:"cluck",  n:"Crispy Cluck",  price:5.99, r:["bunBottom","chicken","lettuce","mayo","bunTop"]}
+];
+const FRY_PRICE = {S:2.19, M:2.79, L:3.39};
+const CUP_PRICE = {S:1.79, M:2.19, L:2.59};
+const SIZE_N = {S:"Small", M:"Medium", L:"Large"};
+const FLAVORS = [
+  {id:"cola",  n:"Cola",       c:"#5A3418"},
+  {id:"lime",  n:"Lemon-Lime", c:"#C8E06A"},
+  {id:"orange",n:"Orange Fizz",c:"#F0902B"},
+  {id:"tea",   n:"Iced Tea",   c:"#8A4B18"}
+];
+const NAMES = ["Marisol","Dev","Nkechi","Tobias","Yui","Ramon","Priya","Otto","Lena","Kwame","Sofia","Jules","Amara","Hugo","Bea","Idris"];
+const FACES = ["🧑‍🦱","👩‍🦰","🧔","👵","👨‍🎤","👩‍💻","🧑‍🌾","👦","👩‍🚀","🧓","👨‍🍳","🧑‍🎨"];
+
+/* ============ state ============ */
+const S = {
+  on:false, day:1, t:180, cash:0, tips:0, served:0, perfect:0, walk:0,
+  streak:0, best:0, seq:1,
+  cust:[], sel:null, tray:[],
+  stack:[], frySize:"M", cupSize:"M", flavor:"cola",
+  spawnIn:1.2, muted:false
+};
+const CFG = d => ({
+  len:180,
+  gap: Math.max(6.5, 13 - d*1.1),
+  maxWait: 3,
+  patience: Math.max(34, 62 - d*3.5),
+  lines: d<2?1:(d<4?2:3)
+});
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const money = v => "$" + v.toFixed(2);
+const rnd = a => a[Math.floor(Math.random()*a.length)];
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+
+let actx=null;
+function tone(f,d,type,vol){
+  if(S.muted) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type=type||"square"; o.frequency.value=f;
+    g.gain.value=vol||0.035;
+    o.connect(g); g.connect(actx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+d);
+    o.stop(actx.currentTime+d+0.02);
+  }catch(e){}
+}
+const SFX = {
+  print:()=>{tone(1400,.05,"square",.02); setTimeout(()=>tone(1100,.05,"square",.02),60);},
+  tap:  ()=>tone(520,.04,"triangle",.03),
+  good: ()=>{tone(660,.09,"triangle",.05); setTimeout(()=>tone(990,.14,"triangle",.05),90);},
+  bad:  ()=>tone(150,.22,"sawtooth",.04),
+  ding: ()=>{tone(1320,.12,"sine",.06); setTimeout(()=>tone(1760,.2,"sine",.05),110);}
+};
+
+function toast(msg, kind){
+  const el = document.createElement("div");
+  el.className = "toast" + (kind?" "+kind:"");
+  el.textContent = msg;
+  $("#toasts").appendChild(el);
+  setTimeout(()=>{ el.style.transition="opacity .3s, transform .3s"; el.style.opacity="0"; el.style.transform="translateY(-8px)"; }, 1500);
+  setTimeout(()=>el.remove(), 1900);
+}
+
+/* ============ orders ============ */
+function makeOrder(){
+  const c = CFG(S.day);
+  const n = 1 + Math.floor(Math.random()*c.lines);
+  const lines = [];
+  const pool = ["burger","fries","drink"];
+  // always at least one food item first
+  for(let i=0;i<n;i++){
+    const kind = i===0 ? (Math.random()<.72?"burger":rnd(pool)) : rnd(pool);
+    if(kind==="burger"){
+      const b = rnd(BURGERS);
+      lines.push({kind:"burger", id:b.id, name:b.n, price:b.price, done:false});
+    } else if(kind==="fries"){
+      const sz = rnd(["S","M","L"]);
+      lines.push({kind:"fries", size:sz, name:"Fries", price:FRY_PRICE[sz], done:false});
+    } else {
+      const f = rnd(FLAVORS), sz = rnd(["S","M","L"]);
+      lines.push({kind:"drink", id:f.id, size:sz, name:f.n, price:CUP_PRICE[sz], done:false});
+    }
+  }
+  return lines;
+}
+
+function spawn(){
+  const c = CFG(S.day);
+  if(S.cust.length >= c.maxWait) return;
+  const cust = {
+    key: "A" + String(S.seq++).padStart(2,"0"),
+    name: rnd(NAMES),
+    face: rnd(FACES),
+    lines: makeOrder(),
+    pat: c.patience,
+    maxPat: c.patience
+  };
+  S.cust.push(cust);
+  if(!S.sel) S.sel = cust.key;
+  SFX.print();
+  renderRail();
+}
+
+/* ============ rail render ============ */
+function renderRail(){
+  const rail = $("#rail");
+  if(!S.cust.length){
+    rail.innerHTML = '<div class="rail-empty">No tickets yet</div>';
+    updateServe();
+    return;
+  }
+  rail.innerHTML = "";
+  S.cust.forEach(c=>{
+    const total = c.lines.reduce((s,l)=>s+l.price,0);
+    const b = document.createElement("button");
+    b.className = "ticket" + (c.key===S.sel ? " sel":"");
+    b.type="button";
+    b.setAttribute("aria-pressed", c.key===S.sel);
+    const pct = clamp(c.pat/c.maxPat,0,1);
+    const col = pct>.55 ? "var(--mint)" : pct>.28 ? "var(--amber)" : "var(--sear)";
+    b.innerHTML =
+      '<span class="patience" data-k="'+c.key+'" style="height:'+(pct*100)+'%;background:'+col+'"></span>'+
+      '<div class="t-top"><span>ORDER '+c.key+'</span><span>'+money(total)+'</span></div>'+
+      '<div class="t-cust"><span class="face">'+c.face+'</span><span>'+c.name+'</span></div>'+
+      '<div class="t-rule"></div>'+
+      c.lines.map(l=>{
+        const sz = l.size ? SIZE_N[l.size] : "";
+        return '<div class="t-line'+(l.done?" done":"")+'">'+
+               '<span>1</span><span class="nm">'+l.name.toUpperCase()+'</span>'+
+               '<span class="dots">'+".".repeat(40)+'</span>'+
+               '<span>'+sz.toUpperCase()+'</span></div>';
+      }).join("")+
+      '<div class="t-rule"></div>'+
+      '<div class="t-tot"><span>TOTAL</span><span>'+money(total)+'</span></div>';
+    b.addEventListener("click", ()=>{ S.sel = c.key; SFX.tap(); renderRail(); });
+    rail.appendChild(b);
+  });
+  updateServe();
+}
+function tickPatienceBars(){
+  S.cust.forEach(c=>{
+    const el = document.querySelector('.patience[data-k="'+c.key+'"]');
+    if(!el) return;
+    const pct = clamp(c.pat/c.maxPat,0,1);
+    el.style.height = (pct*100)+"%";
+    el.style.background = pct>.55 ? "var(--mint)" : pct>.28 ? "var(--amber)" : "var(--sear)";
+  });
+}
+
+/* ============ build station ============ */
+function renderIngs(){
+  const g = $("#ings");
+  g.innerHTML = "";
+  ING_ORDER.forEach(k=>{
+    const b = document.createElement("button");
+    b.className="ing"; b.type="button";
+    b.innerHTML = '<span class="swatch"><span class="f sm '+ING[k].cls+'"></span></span><span>'+ING[k].n+'</span>';
+    b.addEventListener("click", ()=>addIng(k));
+    g.appendChild(b);
+  });
+}
+function addIng(k){
+  if(!S.on) return;
+  if(S.stack.length >= 9){ toast("That tower is not food anymore","bad"); SFX.bad(); return; }
+  S.stack.push(k);
+  SFX.tap();
+  renderStack();
+}
+function renderStack(){
+  const st = $("#stack");
+  if(!S.stack.length){ st.innerHTML = '<div class="stack-hint">Start with<br>a bottom bun</div>'; return; }
+  st.innerHTML = S.stack.map(k=>'<span class="f stk '+ING[k].cls+'"></span>').join("");
+}
+function scoreBuild(stack){
+  let best = null;
+  BURGERS.forEach(b=>{
+    const len = Math.max(b.r.length, stack.length);
+    let err = 0;
+    for(let i=0;i<len;i++){ if(b.r[i] !== stack[i]) err++; }
+    const q = clamp(1 - err/b.r.length, 0, 1);
+    if(!best || q > best.q) best = {b:b, q:q};
+  });
+  return best;
+}
+function wrap(){
+  if(!S.on) return;
+  if(S.stack.length < 2){ toast("Needs more than that","bad"); SFX.bad(); return; }
+  const m = scoreBuild(S.stack);
+  if(m.q < 0.5){
+    S.tray.push({kind:"burger", id:"mystery", name:"Mystery Burger", q:0, ico:"🍔"});
+    toast("Nobody ordered that","bad"); SFX.bad();
+  }else{
+    S.tray.push({kind:"burger", id:m.b.id, name:m.b.n, q:m.q, ico:"🍔"});
+    if(m.q>=.999){ toast(m.b.n+" — textbook","good"); SFX.good(); }
+    else{ toast(m.b.n+" — close enough"); SFX.tap(); }
+  }
+  S.stack = [];
+  renderStack(); renderTray();
+}
+
+/* ============ fryer ============ */
+const FRY = {run:false, t:0, dur:3.4, good:[.60,.80], burn:.90};
+function layoutFryZones(){
+  $("#zGood").style.left = (FRY.good[0]*100)+"%";
+  $("#zGood").style.width = ((FRY.good[1]-FRY.good[0])*100)+"%";
+  $("#zBurn").style.left = (FRY.burn*100)+"%";
+  $("#zBurn").style.width = ((1-FRY.burn)*100)+"%";
+  const v = $("#friesVis");
+  v.innerHTML = Array.from({length:11}, (_,i)=>'<i style="height:'+(11+((i*7)%15))+'px"></i>').join("");
+}
+function fryClick(){
+  if(!S.on) return;
+  if(!FRY.run){
+    FRY.run = true; FRY.t = 0;
+    $("#basket").classList.add("in");
+    $("#vat").classList.add("hot");
+    $("#fryBtn").textContent = "Lift basket";
+    $("#fryBtn").classList.remove("calm");
+    $("#fryOut").className="readout"; $("#fryOut").textContent = "Frying…";
+    tone(300,.1,"sine",.03);
+  } else {
+    FRY.run = false;
+    const p = clamp(FRY.t/FRY.dur,0,1.15);
+    $("#basket").classList.remove("in");
+    $("#vat").classList.remove("hot");
+    $("#fryBtn").textContent = "Drop basket";
+    let q, label, cls;
+    if(p < FRY.good[0]){ q = clamp(p/FRY.good[0],0,1)*0.6; label="Pale and floppy"; cls="bad"; }
+    else if(p <= FRY.good[1]){ q = 1; label="Golden — perfect"; cls="good"; }
+    else if(p < FRY.burn){ q = 0.7; label="A touch dark"; cls=""; }
+    else { q = 0.2; label="Burnt to sticks"; cls="bad"; }
+    $("#fryOut").className = "readout "+cls;
+    $("#fryOut").textContent = label;
+    const shade = q>=1?"#F0C860" : q>=.7?"#D79E36" : q>=.5?"#F5E3AF" : "#6B4A1F";
+    [...$("#friesVis").children].forEach(i=>i.style.background=shade);
+    S.tray.push({kind:"fries", size:S.frySize, name:"Fries", q:q, ico:"🍟"});
+    (q>=1?SFX.good:SFX.tap)();
+    renderTray();
+    $("#needle").style.left = "0%";
+  }
+}
+
+/* ============ drinks ============ */
+const POUR = {run:false, fill:0};
+function renderFlavors(){
+  const g = $("#flavors"); g.innerHTML="";
+  FLAVORS.forEach(f=>{
+    const b=document.createElement("button");
+    b.className="flav"; b.type="button";
+    b.setAttribute("aria-pressed", f.id===S.flavor);
+    b.innerHTML = '<span class="chip" style="background:'+f.c+'"></span>'+f.n;
+    b.addEventListener("click", ()=>{
+      S.flavor=f.id; SFX.tap();
+      $("#soda").style.background=f.c;
+      renderFlavors();
+    });
+    g.appendChild(b);
+  });
+}
+function pourStart(e){
+  if(!S.on) return;
+  if(e) e.preventDefault();
+  if(POUR.run) return;
+  POUR.run = true; POUR.fill = 0;
+  $("#pourOut").className="readout"; $("#pourOut").textContent="Pouring…";
+  tone(220,.08,"sine",.02);
+}
+function pourEnd(){
+  if(!POUR.run) return;
+  POUR.run = false;
+  const f = POUR.fill;
+  let q, label, cls;
+  if(f > 100){ q = 0.25; label="Overflowed — sticky counter"; cls="bad"; }
+  else if(f >= 88){ q = 1; label="Filled to the line"; cls="good"; }
+  else if(f >= 68){ q = 0.7; label="A bit short"; cls=""; }
+  else { q = clamp(f/100,0,1)*0.55; label="Barely a mouthful"; cls="bad"; }
+  $("#pourOut").className="readout "+cls;
+  $("#pourOut").textContent = label;
+  const fl = FLAVORS.find(x=>x.id===S.flavor);
+  S.tray.push({kind:"drink", id:S.flavor, size:S.cupSize, name:fl.n, q:q, ico:"🥤"});
+  (q>=1?SFX.good:SFX.tap)();
+  renderTray();
+  setTimeout(()=>{ POUR.fill=0; $("#soda").style.height="0%"; }, 500);
+}
+
+/* ============ tray / pass ============ */
+function renderTray(){
+  const t = $("#tray");
+  if(!S.tray.length){
+    t.innerHTML = '<div class="tray-empty">Finished items land here</div>';
+    updateServe(); return;
+  }
+  t.innerHTML = "";
+  S.tray.forEach((it,i)=>{
+    const row = document.createElement("div");
+    row.className="slot";
+    const qc = it.q>=.999?"good":(it.q>=.7?"":"bad");
+    const qt = it.q>=.999?"perfect":(it.q>=.7?"decent":"poor");
+    const sz = it.size ? SIZE_N[it.size]+" · " : "";
+    row.innerHTML =
+      '<span class="ico">'+it.ico+'</span>'+
+      '<span class="txt"><span class="nm">'+it.name+'</span>'+
+      '<span class="qa '+qc+'">'+sz+qt+'</span></span>'+
+      '<button class="bin" title="Bin it" aria-label="Bin '+it.name+'">🗑</button>';
+    row.querySelector(".bin").addEventListener("click",()=>{
+      S.tray.splice(i,1); SFX.tap(); renderTray();
+    });
+    t.appendChild(row);
+  });
+  updateServe();
+}
+function updateServe(){
+  $("#serveBtn").disabled = !(S.on && S.sel && S.tray.length);
+}
+
+/* ============ serving ============ */
+function matches(line, item){
+  if(line.kind !== item.kind) return false;
+  if(line.kind==="burger") return line.id === item.id;
+  if(line.kind==="fries")  return line.size === item.size;
+  if(line.kind==="drink")  return line.id === item.id && line.size === item.size;
+  return false;
+}
+function serve(){
+  if(!S.on) return;
+  const c = S.cust.find(x=>x.key===S.sel);
+  if(!c){ toast("Pick a ticket first","bad"); return; }
+
+  const used = new Set();
+  let earned = 0, hits = 0, qsum = 0;
+  c.lines.forEach(line=>{
+    let bi = -1, bq = -1;
+    S.tray.forEach((it,i)=>{
+      if(used.has(i)) return;
+      if(matches(line,it) && it.q > bq){ bq = it.q; bi = i; }
+    });
+    if(bi >= 0){
+      used.add(bi); hits++; qsum += bq;
+      earned += line.price * (0.55 + 0.45*bq);
+    }
+  });
+
+  const total = c.lines.length;
+  const waste = S.tray.length - used.size;
+  const avgQ = hits ? qsum/hits : 0;
+  const speed = clamp(c.pat / c.maxPat, 0, 1);
+  const allRight = hits === total && waste === 0;
+  const flawless = allRight && avgQ >= 0.999;
+
+  if(flawless) S.streak++;
+  else if(allRight) S.streak = Math.max(0, S.streak);
+  else S.streak = 0;
+  S.best = Math.max(S.best, S.streak);
+
+  const mult = 1 + Math.min(S.streak,10)*0.08;
+  let tip = allRight ? earned * (0.10 + 0.25*avgQ) * (0.5 + 0.5*speed) * mult : 0;
+  earned -= waste * 0.85;
+  earned = Math.max(0, earned);
+  tip = Math.max(0, tip);
+
+  S.cash += earned + tip;
+  S.tips += tip;
+  S.served++;
+  if(flawless) S.perfect++;
+
+  // clear used tray items
+  S.tray = S.tray.filter((_,i)=>!used.has(i));
+  S.cust = S.cust.filter(x=>x.key!==c.key);
+  S.sel = S.cust.length ? S.cust[0].key : null;
+
+  if(flawless){
+    toast("Perfect order · "+money(earned+tip)+(S.streak>1?"  ×"+S.streak+" streak":""), "good");
+    SFX.ding();
+  } else if(hits === 0){
+    toast(c.name+" got nothing they asked for", "bad"); SFX.bad();
+  } else if(!allRight){
+    toast(hits+"/"+total+" right · "+money(earned), "bad"); SFX.bad();
+  } else {
+    toast("Served · "+money(earned+tip), "good"); SFX.good();
+  }
+
+  renderRail(); renderTray(); paintGauges();
+}
+
+/* ============ loop ============ */
+let last = 0, raf = 0;
+function loop(ts){
+  raf = requestAnimationFrame(loop);
+  if(!last) last = ts;
+  const dt = Math.min(0.05, (ts-last)/1000);
+  last = ts;
+  if(!S.on) return;
+
+  const c = CFG(S.day);
+
+  S.t -= dt;
+  if(S.t <= 0){ S.t = 0; endDay(); return; }
+
+  S.spawnIn -= dt;
+  if(S.spawnIn <= 0){ spawn(); S.spawnIn = c.gap * (0.75 + Math.random()*0.55); }
+
+  let walked = false;
+  S.cust.forEach(x=>{ x.pat -= dt; });
+  const left = S.cust.filter(x=>x.pat<=0);
+  if(left.length){
+    left.forEach(x=>{ toast(x.name+" walked out", "bad"); });
+    S.walk += left.length;
+    S.streak = 0;
+    S.cust = S.cust.filter(x=>x.pat>0);
+    if(!S.cust.find(x=>x.key===S.sel)) S.sel = S.cust.length ? S.cust[0].key : null;
+    walked = true;
+    SFX.bad();
+  }
+  if(walked) renderRail(); else tickPatienceBars();
+
+  if(FRY.run){
+    FRY.t += dt;
+    const p = clamp(FRY.t/FRY.dur, 0, 1);
+    $("#needle").style.left = (p*100)+"%";
+    if(FRY.t/FRY.dur >= 1.15) fryClick();
+  }
+  if(POUR.run){
+    POUR.fill += dt * 62;
+    $("#soda").style.height = Math.min(POUR.fill,100)+"%";
+    if(POUR.fill > 135) pourEnd();
+  }
+
+  paintGauges();
+}
+function paintGauges(){
+  const m = Math.floor(S.t/60), s = Math.floor(S.t%60);
+  $("#gClock").textContent = m+":"+String(s).padStart(2,"0");
+  $("#gClockBox").classList.toggle("low", S.t <= 30);
+  $("#gCash").textContent = "$"+Math.round(S.cash);
+  $("#gStreak").textContent = S.streak;
+  $("#gDay").textContent = S.day;
+  updateServe();
+}
+
+/* ============ day flow ============ */
+function startDay(){
+  const c = CFG(S.day);
+  S.on = true; S.t = c.len;
+  S.cust = []; S.tray = []; S.stack = []; S.sel = null;
+  S.streak = 0; S.served = 0; S.perfect = 0; S.walk = 0;
+  S.dayStartCash = S.cash; S.dayStartTips = S.tips;
+  S.spawnIn = 1.0;
+  renderRail(); renderTray(); renderStack(); paintGauges();
+  $("#vStart").hidden = true; $("#vEnd").hidden = true;
+  last = 0;
+  if(!raf) raf = requestAnimationFrame(loop);
+}
+function endDay(){
+  S.on = false;
+  const took = S.cash - S.dayStartCash;
+  const tips = S.tips - S.dayStartTips;
+  $("#endTitle").textContent = S.walk===0 && S.served>0 ? "Clean shift" : "Shift over";
+  $("#endSub").textContent = "Day "+S.day+" receipts";
+  $("#eTotal").textContent = money(took);
+  $("#eTips").textContent = money(tips);
+  $("#eServed").textContent = S.served;
+  $("#ePerfect").textContent = S.perfect;
+  $("#eWalk").textContent = S.walk;
+  $("#eStreak").textContent = S.best;
+  let note;
+  if(S.served === 0) note = "Not a single ticket cleared. Tomorrow, start with the bottom bun.";
+  else if(S.walk > 2) note = "Too many people gave up waiting. Work the ticket with the shortest bar first.";
+  else if(S.perfect >= S.served*0.7) note = "Nearly everything went out exactly right. The rush gets faster tomorrow.";
+  else note = "Solid enough. Tips scale with accuracy and speed, so chase the perfect builds.";
+  $("#endNote").textContent = note;
+  $("#btnNext").textContent = "Clock in for Day "+(S.day+1);
+  $("#vEnd").hidden = false;
+  SFX.ding();
+}
+
+/* ============ recipe book ============ */
+function renderBook(){
+  const l = $("#bookList");
+  l.innerHTML = BURGERS.map(b=>
+    '<div class="rcp"><h3>'+b.n+' <em>'+money(b.price)+'</em></h3><p>'+
+    b.r.map(k=>ING[k].n).join("  →  ")+'</p></div>'
+  ).join("") +
+  '<div class="rcp"><h3>Fries <em>'+money(FRY_PRICE.S)+' / '+money(FRY_PRICE.M)+' / '+money(FRY_PRICE.L)+'</em></h3><p>Size first, then drop. Lift in the green band.</p></div>' +
+  '<div class="rcp"><h3>Drinks <em>'+money(CUP_PRICE.S)+' / '+money(CUP_PRICE.M)+' / '+money(CUP_PRICE.L)+'</em></h3><p>Size and flavor both have to match the ticket.</p></div>';
+}
+
+/* ============ wiring ============ */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected", x===t));
+    document.querySelectorAll(".station").forEach(s=>s.classList.remove("on"));
+    $("#st-"+t.dataset.st).classList.add("on");
+    SFX.tap();
+  });
+});
+$("#undo").addEventListener("click", ()=>{ if(S.stack.length){ S.stack.pop(); renderStack(); SFX.tap(); }});
+$("#wrap").addEventListener("click", wrap);
+$("#fryBtn").addEventListener("click", fryClick);
+
+$("#frySizes").addEventListener("click", e=>{
+  const b = e.target.closest(".size"); if(!b) return;
+  S.frySize = b.dataset.sz;
+  [...$("#frySizes").children].forEach(x=>x.setAttribute("aria-pressed", x===b));
+  SFX.tap();
+});
+$("#cupSizes").addEventListener("click", e=>{
+  const b = e.target.closest(".size"); if(!b) return;
+  S.cupSize = b.dataset.sz;
+  [...$("#cupSizes").children].forEach(x=>x.setAttribute("aria-pressed", x===b));
+  $("#cup").className = "cup " + b.dataset.sz.toLowerCase();
+  SFX.tap();
+});
+
+const pb = $("#pourBtn");
+pb.addEventListener("pointerdown", e=>{
+  try{ pb.setPointerCapture(e.pointerId); }catch(err){}
+  pourStart(e);
+});
+pb.addEventListener("pointerup", pourEnd);
+pb.addEventListener("pointercancel", ()=>{ if(POUR.run) pourEnd(); });
+window.addEventListener("pointerup", ()=>{ if(POUR.run) pourEnd(); });
+window.addEventListener("blur", ()=>{ if(POUR.run) pourEnd(); });
+pb.addEventListener("keydown", e=>{ if((e.key===" "||e.key==="Enter") && !e.repeat) pourStart(e); });
+pb.addEventListener("keyup", e=>{ if(e.key===" "||e.key==="Enter") pourEnd(); });
+pb.addEventListener("contextmenu", e=>e.preventDefault());
+
+$("#serveBtn").addEventListener("click", serve);
+$("#btnStart").addEventListener("click", ()=>{ startDay(); });
+$("#btnNext").addEventListener("click", ()=>{ S.day++; startDay(); });
+$("#btnBook").addEventListener("click", ()=>{ renderBook(); $("#vBook").hidden=false; });
+$("#btnCloseBook").addEventListener("click", ()=>{ $("#vBook").hidden=true; });
+$("#btnMute").addEventListener("click", ()=>{
+  S.muted = !S.muted;
+  $("#btnMute").textContent = S.muted ? "🔇" : "🔊";
+});
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape" && !$("#vBook").hidden) $("#vBook").hidden = true;
+});
+
+renderIngs(); renderFlavors(); layoutFryZones(); renderStack(); renderTray(); paintGauges();
+$("#soda").style.background = FLAVORS[0].c;
+})();
+</script>
+</body>
+</html>
